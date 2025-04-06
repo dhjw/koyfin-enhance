@@ -1,4 +1,4 @@
-let heading_str = 'Shares @ Avg Price', mwt, assets, prices
+let heading_str = 'Shares @ Avg Price', mwt, assets, prices, interval
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', afterDOMLoaded); else afterDOMLoaded();
 
@@ -11,15 +11,30 @@ async function afterDOMLoaded() {
 	if (!$(mwt).find(':contains(' + heading_str + ')').length) return console.log('[koyfin-enhance] error: no column heading with "' + heading_str + '". aborting')
 	if (!$(mwt).find(':contains(Last Price)').length) return console.log('[koyfin-enhance] error: no column heading with "Last Price". aborting')
 	// run
+	init()
+	navigation.addEventListener('navigate', (e) => {
+		(async () => {
+			// console.log('[koyfin-enhance] navigation detected')
+			await waitTilStopMutating()
+			init()
+		})()
+	})
+}
+
+function init() {
 	update()
-	setInterval(update, 2000) // MutationObserver was even more inefficient
+	if (interval) clearInterval(interval)
+	interval = setInterval(update, 2000) // MutationObserver was even more inefficient
 }
 
 function update() {
 	if (!document.hasFocus()) return
-	// don't use cache in case assets or rows are edited 
+	// don't use cache in case assets or rows are edited or re-init on navigation
+	mwt = document.querySelector('div[class^=my-watchlist-table]')
+	if (!mwt) return
+	// console.log('[koyfin-enhance] update')
 	prices = mwt.querySelectorAll('div[class*=cell-content-animated-price-update]')
-	assets = mwt.querySelectorAll('div[class^=my-watchlist-table] div[class^=table-cell-user-data__tableCellUserData__label]')
+	assets = mwt.querySelectorAll('div[class^=table-cell-user-data__tableCellUserData__label]')
 	for (i = 0; i < assets.length; i++) {
 		// console.log('i:', i, 'text: "' + assets[i].innerText + '"')
 		let m = assets[i].innerText.match(new RegExp('^(\\d+) @ (\\d+.?(?:\\d+)?)(?: ([^( ]*))?'))
@@ -42,7 +57,7 @@ function update() {
 
 // wait until stop mutating
 function waitTilStopMutating(time = 1000) {
-	console.log('[koyfin-enhance] waitTilStopMutating(', time, ')')
+	// console.log('[koyfin-enhance] waitTilStopMutating(', time, ')')
 	return new Promise(resolve => {
 		(async () => {
 			let timer
@@ -50,13 +65,13 @@ function waitTilStopMutating(time = 1000) {
 				// console.log('[koyfin-enhance] mutations:', mutations)
 				if (timer) clearTimeout(timer)
 				timer = setTimeout(() => {
-					console.log('[koyfin-enhance] Mutations stopped')
+					// console.log('[koyfin-enhance] Mutations stopped')
 					observer.disconnect()
 					resolve()
 				}, time)
 			});
 			timer = setTimeout(() => {
-				console.log('[koyfin-enhance] Mutations stopped')
+				// console.log('[koyfin-enhance] Mutations stopped')
 				observer.disconnect()
 				resolve()
 			}, time)
